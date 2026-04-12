@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/logo.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Import file</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+</head>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Inter, sans-serif;
+        background: #0f172a;
+        color: white;
+    }
+
+    /* HEADER */
+    .header {
+        padding: 14px 16px;
+        border-bottom: 1px solid #1e293b;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    li:hover{
+        background:#334155;
+        cursor:pointer;
+    }
+    .logo {
+        font-weight: 600;
+        font-size: 16px;
+    }
+
+    .badge {
+        font-size: 11px;
+        background: #22c55e;
+        padding: 3px 6px;
+        border-radius: 6px;
+    }
+    #previewContent{
+        max-height: 440px;
+        overflow-y: auto;
+        padding-right: 4px;
+        width: 100%;
+        scrollbar-width: none;
+    }
+
+    #previewContent::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    #previewContent::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #previewContent::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 999px;
+    }
+
+    #previewContent::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.35);
+    }
+
+    /* Container */
+    .tabs {
+        display: flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 20px;
+
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(20px);
+
+        width: fit-content;
+        margin: 50px auto;
+
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+
+    /* Tab */
+    .absolute{
+        position:relative !important;
+        /*height: 190px;*/
+        width: 100%;
+        z-index: 1;
+
+    }
+    .tabs{
+        position:absolute;
+        display: flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(20px);
+        width: fit-content;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+    }
+    .tab {
+        padding: 8px 16px;
+        border-radius: 14px;
+        font-size: 14px;
+        color: #555;
+        cursor: pointer;
+        transition: all 0.25s ease;
+
+    }
+
+    /* Active tab kiểu iOS */
+    .tab.active {
+        background: white;
+        color: black;
+        font-weight: 500;
+
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* Hover nhẹ */
+    .tab:hover {
+        color: black;
+    }
+    /* CONTENT */
+    .content {
+        padding: 16px;
+        position: relative;
+        z-index: 1;
+        height: 100%;
+    }
+
+    .card {
+        background: #1e293b;
+        padding: 14px;
+        border-radius: 12px;
+        margin-bottom: 14px;
+    }
+
+    .title {
+        font-size: 13px;
+        margin-bottom: 10px;
+        color: #94a3b8;
+    }
+
+    /* BUTTON */
+    .btn {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        margin-bottom: 8px;
+        font-size: 13px;
+        transition: 0.2s;
+    }
+
+    .btn-blue {
+        background: #3b82f6;
+    }
+
+    .btn-blue:hover {
+        background: #2563eb;
+    }
+
+    .btn-green {
+        background: #10b981;
+    }
+
+    .btn-green:hover {
+        background: #059669;
+    }
+
+    .btn-dark {
+        background: #334155;
+    }
+
+    .btn-dark:hover {
+        background: #475569;
+    }
+
+    .row {
+        display: flex;
+        gap: 6px;
+    }
+
+    .row .btn {
+        flex: 1;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        background: #020617;
+        border: none;
+        border-radius: 8px;
+        padding: 10px;
+        color: #38bdf8;
+        font-size: 11px;
+    }
+    select {
+        width:100%;
+        padding:8px 16px 8px 8px;
+        border-radius:6px;
+        background:#020617;
+        color:white;
+        border:none;
+    }
+
+    .hidden {
+        display: none;
+    }
+    .loader {
+        border: 3px solid #1e293b;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+</style>
+<body>
+<!-- HEADER -->
+<div class="header">
+    <div class="logo">🚀 Export Pro</div>
+    <div class="">
+        <div class="hidden" id="proFeatures" style="display:none; gap:8px; align-items:center;">
+            <input id="keyInput" placeholder="🔑 Enter Pro Key"/>
+            <button onclick="activateKey()">Activate Key</button>
+        </div>
+
+        <button class="btn btn-blue" onclick="buyKey()">💳 Buy pro </button>
+
+        <button class="btn btn-blue" id="advancedBtn" onclick="toggleAdvanced()" style="display:none">
+            ⚡ Advanced Mode
+        </button></div>
+
+</div>
+<!-- CONTENT -->
+<div class="content">
+
+    <!-- EXPORT TAB -->
+    <div id="export" class="tab-content">
+        <div class="card">
+            <div class="title">PDF Export</div>
+
+            <button class="btn btn-blue" onclick="exportAll()">
+                Export All Frames
+            </button>
+
+            <button class="btn btn-blue" onclick="exportSelection()">
+                Export Selected
+            </button>
+        </div>
+    </div>
+
+    <!-- IMPORT TAB -->
+    <div id="import" class="tab-content hidden">
+        <div class="d-flex" style="display:flex; gap:16px;">
+            <div class="card previewPDFCard" style="display:block;background: #1e293b;text-align:center; height: 100%; width: 100px; padding:6px;">
+                <div id="previewContent"></div>
+            </div>
+            <div class="card" style="flex:1;width: 100%; display:flex; flex-direction:column;">
+
+                <!-- MODE SELECTOR -->
+                <div style="display:none; gap:8px; margin-bottom:16px; background:#1e293b; padding:6px; border-radius:12px;">
+                    <button id="modeEditable" onclick="setMode('editable')" class="btn btn-dark active">Maximum Editable</button>
+                    <button id="modeFidelity" onclick="setMode('fidelity')" class="btn btn-dark">High Fidelity (Image Reference)</button>
+                </div>
+
+                <!-- DROP ZONE -->
+                <div id="dropZone" style="border:3px dashed #3b82f6;border-radius:16px;padding:32px 20px;text-align:center;background:#1e293b;cursor:pointer;transition:0.3s;">
+                    <div style="font-size:48px;margin-bottom:12px;">📄</div>
+                    <h3 style="margin:0 0 8px;font-size:18px;color:white;">Kéo thả PDF vào đây</h3>
+                    <p style="margin:0;color:#94a3b8;font-size:14px;">hoặc click để chọn</p>
+                    <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
+                </div>
+
+                <div style="margin-top:16px;display:flex;gap:8px;">
+                    <button onclick="importPDF()" class="btn btn-green" style="flex:1;">🚀 Import ngay vào Figma</button>
+                </div>
+
+                <div class="settings">
+                    <div class="title">Setting</div>
+                    <label for="mode"></label><select id="mode">
+                    <option value="editable">Editable Layers</option>
+                    <option value="image">Image Fidelity</option>
+                </select>
+
+                    <div class="title">Pages</div>
+                    <label for="pages"></label><select id="pages">
+                    <option value="all">All Pages (PRO)</option>
+                    <option value="first3">First 3 (Free)</option>
+                </select>
+
+                    <div class="title">Stack Direction</div>
+                    <label for="stack"></label><select id="stack">
+                    <option value="vertical">Vertical</option>
+                    <option value="horizontal">Horizontal</option>
+                </select>
+                </div>
+
+                <div id="pdfLoading" style="display:none;text-align:center;margin-top:16px;">
+                    <div class="loader"></div>
+                    <div id="loadingStep" style="margin-top:12px;font-size:14px;"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <!-- CODE TAB -->
+    <div id="code" class="tab-content hidden">
+        <div class="card">
+            <div class="title">HTML Export</div>
+
+            <button class="btn btn-green" id="btn-gen" onclick="exportHTML()">
+                Generate HTML
+            </button>
+
+            <div class="row">
+                <button class="btn btn-dark" onclick="previewHTML()">Preview</button>
+                <button class="btn btn-dark" onclick="downloadHTML()">Download</button>
+            </div>
+            <div style="margin-bottom:10px;">
+                <select id="codeType">
+                    <option value="html">HTML (Inline CSS)</option>
+                    <option value="tailwind">Tailwind</option>
+                    <option value="react">React JSX</option>
+                </select>
+            </div>
+            <textarea id="output"></textarea>
+
+            <div id="loading" class="hidden" style="text-align:center;margin-top:10px;">
+                <div class="loader"></div>
+                <div style="font-size:12px;margin-top:6px;">Generating...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI TAB -->
+    <div id="ai" class="tab-content hidden">
+        <div class="card">
+            <div class="title">AI Convert (Pro)</div>
+
+            <button class="btn btn-green" onclick="fakeAI()">
+                🤖 Convert to React + Tailwind
+            </button>
+        </div>
+    </div>
+
+</div>
+<!-- TABS -->
+<div class="absolute">
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('export')">Export</div>
+        <div class="tab" onclick="switchTab('import')">Import</div>
+        <div class="tab" onclick="switchTab('code')">Code</div>
+        <div class="tab" onclick="switchTab('ai')">AI</div>
+    </div>
+</div>
+<script>
+
+    let latestHTML = "";
+    let latestPages = "";
+    let currentFileName = "";
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    // pdfjsLib.disableWorker = false;
+    /* ===== MODE SELECTOR ===== */
+
+
+
+    /* ===== TAB SWITCH ===== */
+    function switchTab(tab) {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
+
+        document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add("active");
+        document.getElementById(tab).classList.remove("hidden");
+    }
+
+    /* ===== DRAG & DROP + FILE HANDLER ===== */
+    const dropZone = document.getElementById("dropZone");
+    const pdfInput = document.getElementById("pdfInput");
+
+    dropZone.addEventListener("click", () => pdfInput.click());
+    pdfInput.addEventListener("change", e => {
+        if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropZone.style.background = "#3b82f6";
+    });
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.style.background = "#1e293b";
+    });
+    dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.style.background = "#1e293b";
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === "application/pdf") handleFile(file);
+    });
+
+    /* ===== XỬ LÝ FILE PDF ===== */
+    async function handleFile(file) {
+
+        const loading = document.getElementById("pdfLoading");
+        const step = document.getElementById("loadingStep");
+        const preview = document.getElementById("previewContent");
+        currentFileName = file.name;
+        try {
+
+            if (loading) loading.style.display = "block";
+            if (step) step.textContent = "📄 Parsing PDF...";
+
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+
+            const pages = [];
+
+            /* =========================
+               🔥 OCR
+            ========================= */
+
+            /* =========================
+            🔥 FULL PAGE PREVIEW
+            ========================= */
+
+            if (preview) preview.innerHTML = "";
+            // scale nhỏ để vừa UI
+
+
+            for(let i=1;i<=pdf.numPages;i++){
+
+                const page = await pdf.getPage(i);
+
+                const scale = 0.6;
+                const viewport = page.getViewport({ scale });
+
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: ctx,
+                    viewport
+                }).promise;
+
+                const img = document.createElement("img");
+                img.src = canvas.toDataURL();
+                img.style.width = "100%";
+
+                preview.appendChild(img);
+            }
+            /* =========================
+               🔥 PARSE ALL PAGES (V15)
+            ========================= */
+            for (let i = 1; i <= pdf.numPages; i++) {
+
+                const page = await pdf.getPage(i);
+
+                // 🔥 FIX SCALE
+                const viewport = page.getViewport({ scale: 96 / 72 });
+
+                /* =========================
+                   🔥 CANVAS (THÊM)
+                ========================== */
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: ctx,
+                    viewport
+                }).promise;
+
+                /* =========================
+                   TEXT PDF (GIỮ NGUYÊN)
+                ========================== */
+                const text = await page.getTextContent();
+
+                const textItems = text.items
+                    .filter(t=>t.str.trim())
+                    .map((t,idx)=>{
+
+                        const fontSize = t.height || 12;
+
+                        return {
+                            id:"t_"+i+"_"+idx,
+                            text:t.str,
+                            x:t.transform[4],
+                            y: viewport.height - t.transform[5],
+                            fontSize,
+
+                            // 🔥 V10 style info
+                            width: t.width || 0,
+                            height: t.height || 0
+                        };
+                    });
+
+                /* =========================
+                   🔥 OCR + COLOR (THÊM)
+                ========================== */
+
+                let ocrItems = [];
+
+                if (textItems.length === 0) {
+
+                    const { data } = await Tesseract.recognize(
+                        canvas,
+                        'eng+vie',
+                        { logger: m => console.log(m) }
+                    );
+
+                    function getColor(x, y, w, h) {
+                        const d = ctx.getImageData(x, y, w, h).data;
+
+                        let r = 0, g = 0, b = 0, c = 0;
+
+                        for (let i = 0; i < d.length; i += 4) {
+                            r += d[i];
+                            g += d[i + 1];
+                            b += d[i + 2];
+                            c++;
+                        }
+
+                        return {
+                            r: (r / c) / 255,
+                            g: (g / c) / 255,
+                            b: (b / c) / 255
+                        };
+                    }
+
+                    ocrItems = data.words.map((w, idx) => {
+
+                        const x = w.bbox.x0;
+                        const y = w.bbox.y0;
+                        const wBox = w.bbox.x1 - w.bbox.x0;
+                        const hBox = w.bbox.y1 - w.bbox.y0;
+
+                        return {
+                            id: "ocr_" + i + "_" + idx,
+                            text: w.text,
+                            x: x,
+                            y: y,
+                            fontSize: hBox,
+                            color: getColor(x, y, wBox, hBox)
+                        };
+                    });
+                }
+
+                /* =========================
+                   🔥 MERGE (QUAN TRỌNG)
+                ========================== */
+                const finalTextItems = textItems.length ? textItems : ocrItems;
+
+                /* =========================
+                   SEND
+                ========================== */
+                parent.postMessage({
+                    pluginMessage: {
+                        type: "page-chunk",
+                        page: {
+                            textItems: finalTextItems,
+                            pathItems: [],
+                            width: viewport.width,
+                            height: viewport.height,
+                            index: i
+                        }
+                    }
+                }, "*");
+
+                await new Promise(r=>setTimeout(r,5));
+            }
+
+
+            // for (let i = 1; i <= pdf.numPages; i++) {
+            //
+            //     if (step) step.textContent = `👁 Preview page ${i}/${pdf.numPages}`;
+            //
+            //     const page = await pdf.getPage(i);
+            //     const viewport = page.getViewport({ scale });
+            //
+            //     // Check pdf images convert file canvas
+            //     const canvas = document.createElement("canvas");
+            //     const ctx = canvas.getContext("2d");
+            //
+            //     canvas.width = viewport.width;
+            //     canvas.height = viewport.height;
+            //
+            //     await page.render({
+            //         canvasContext: ctx,
+            //         viewport
+            //     }).promise;
+            //
+            //     // convert sang image
+            //     const blob = await new Promise(resolve => canvas.toBlob(resolve));
+            //     const buffer = await blob.arrayBuffer();
+            //     const finalTextItems = textItems.length ? textItems : ocrTextItems;
+            //     const textContent = await page.getTextContent();
+            //     const operatorList = await page.getOperatorList();
+            //
+            //     const textItems = textContent.items
+            //         .filter(t => t.str && t.str.trim())
+            //         .map((t, idx) => ({
+            //             id: "t_" + i + "_" + idx,
+            //             text: t.str || "",
+            //             x: t.transform[4],
+            //             y: viewport.height - t.transform[5],
+            //             fontSize: t.height || 12
+            //         }));
+            //
+            //     const pathItems = [];
+            //
+            //     operatorList.fnArray.forEach((fn, idx) => {
+            //         const args = operatorList.argsArray[idx];
+            //
+            //         if (fn === pdfjsLib.OPS.rectangle) {
+            //             pathItems.push({
+            //                 type: "rect",
+            //                 x: args[0],
+            //                 y: viewport.height - args[1],
+            //                 width: args[2],
+            //                 height: args[3]
+            //             });
+            //         }
+            //     });
+            //
+            //     pages.push({
+            //         textItems: finalTextItems,
+            //         pathItems,
+            //         width: viewport.width,
+            //         height: viewport.height,
+            //         index: i,
+            //         imageBytes: buffer
+            //     });
+            //
+            // }
+
+            latestPages = pages;
+
+            /* =========================
+               🔥 SHOW INFO
+            ========================= */
+
+            // if (preview) {
+            //     const info = document.createElement("div");
+            //     info.style.color = "#94a3b8";
+            //     info.style.fontSize = "12px";
+            //     info.style.marginTop = "6px";
+            //
+            //     info.innerHTML = `📄 Parsed <b>${pages.length}</b> pages`;
+            //
+            //     preview.appendChild(info);
+            // }
+
+        } catch (err) {
+            console.error(err);
+            alert("❌ Error: " + err.message);
+        } finally {
+            if (loading) loading.style.display = "none";
+        }
+    }
+
+    /* ===== PREVIEW & IMPORT ===== */
+
+
+
+
+    function importPDF() {
+
+        if (!latestPages) return alert("Chưa có PDF!");
+
+        const settings = {
+            importMode: document.getElementById("mode").value,
+            pageMode: document.getElementById("pages").value,
+            stack: document.getElementById("stack").value,
+            plan: "pro",
+            fileName: currentFileName // ✅ thêm dòng này
+        };
+
+        let limit = latestPages.length;
+
+        // FREE limit
+        if (settings.pageMode === "first3") {
+            limit = Math.min(3, latestPages.length);
+        }
+
+        for (let i = 0; i < limit; i++) {
+
+            const page = latestPages[i];
+
+            parent.postMessage({
+                pluginMessage: {
+                    type: "page-chunk",
+                    page: page,
+                    settings: settings
+                }
+            }, "*", [page.imageBytes]); // 🔥 transfer
+        }
+
+        parent.postMessage({
+            pluginMessage: {
+                type: "done-stream"
+            }
+        }, "*");
+    }
+
+    /* ===== EXPORT FUNCTIONS (giữ nguyên) ===== */
+    function exportAll() {
+        parent.postMessage({ pluginMessage: { type: "export-all" } }, "*");
+    }
+    function exportSelection() {
+        parent.postMessage({ pluginMessage: { type: "export-selection" } }, "*");
+    }
+    function exportHTML() {
+        const type = document.getElementById("codeType").value;
+        document.getElementById("loading").classList.remove("hidden");
+        document.getElementById("btn-gen").classList.add("loading");
+
+        parent.postMessage({
+            pluginMessage: { type: "export-html", codeType: type }
+        }, "*");
+    }
+
+    /* ===== RECEIVE MESSAGES ===== */
+    onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+
+        if (msg.type === "export-result") {
+            exportPDFPure(msg.data);
+        }
+        if (msg.type === "html-result") {
+            latestHTML = msg.html || "";
+            document.getElementById("output").value = latestHTML;
+            document.getElementById("loading").classList.add("hidden");
+            document.getElementById("btn-gen").classList.remove("loading");
+        }
+    };
+
+    /* ===== OTHER FUNCTIONS ===== */
+    function previewHTML() {
+        if (!latestHTML) return alert("No HTML!");
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "100%";
+        iframe.style.height = "300px";
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(latestHTML);
+        doc.close();
+    }
+
+    function downloadHTML() {
+        if (!latestHTML) return alert("No HTML!");
+        const blob = new Blob([latestHTML], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "figma-export.html";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function exportPDFPure(images) {
+        // giữ nguyên hàm cũ của bạn
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+        let html = `<html lang="en"><style>@page { size:A4;margin:0 } body{margin:0} .page{width:210mm;height:297mm;display:flex;justify-content:center;align-items:center;page-break-after:always} img{max-width:100%;max-height:100%}</style><body>`;
+        images.forEach(img => {
+            const base64 = arrayToBase64(img.bytes);
+            html += `<div class="page"><img src="${base64}"/></div>`;
+        });
+        html += "</body></html>";
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }, 500);
+    }
+
+    function arrayToBase64(arr) {
+        let binary = "";
+        const bytes = new Uint8Array(arr);
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return "data:image/png;base64," + btoa(binary);
+    }
+
+    function fakeAI() {
+        alert("🚀 AI Convert coming soon (Pro feature)");
+    }
+    onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg) return;
+
+        if (msg.type === "export-result") {
+            exportPDFPure(msg.data);
+        }
+
+        if (msg.type === "html-result") {
+            latestHTML = msg.html || "";
+            document.getElementById("output").value = latestHTML;
+            document.getElementById("loading").classList.add("hidden");
+            document.getElementById("btn-gen").classList.remove("loading");
+        }
+
+        if (msg.type === "done") {
+            alert("✅ Import complete!");
+        }
+    };
+</script>
+<script>
+    /* ===== KEY SYSTEM ===== */
+
+    let PRO = false;
+
+    function activateKey(){
+
+        const key = document.getElementById("keyInput").value;
+
+        // simple key check
+        if(key === "DUC-PRO-2026"){
+            PRO = true;
+
+            document.getElementById("advancedBtn").style.display = "block";
+
+            alert("✅ Pro Activated");
+        }else{
+            alert("❌ Invalid Key");
+        }
+    }
+
+    /* ===== BUY KEY ===== */
+
+    function buyKey(){
+
+        const info = prompt("Nhập email hoặc số điện thoại:");
+
+        // mở mail
+        window.location.href =
+            `mailto:dominhduchd10@gmail.com?subject=Buy Key&body=User: ${info}`;
+
+        // hoặc QR
+        alert("👉 Bạn cũng có thể thanh toán qua QR (tuỳ bạn thêm sau)");
+    }
+
+    /* ===== ADVANCED MODE ===== */
+
+    function toggleAdvanced(){
+
+        alert("⚡ Advanced Mode ON");
+
+        parent.postMessage({
+            pluginMessage:{ type:"advanced-mode" }
+        },"*");
+    }
+</script>
+
+<script src="main.js"></script>
+
+</body>
+</html>
