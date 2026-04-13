@@ -2,7 +2,7 @@
   "name": "Design Exporter Pro bye Đỗ Minh Đức",
   "id": "1624626582614812214",
 
-  "api": "1.0.0",
+  "api": "1.0.5",
   "main": "main.js",
   "ui": "index.html",
     "editorType": ["figma"]
