@@ -220,174 +220,168 @@ function buildTextBlock(line){
    PAGE RENDER
 ========================= */
 
-// async function renderPage(page){
-//
-//     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-//
-//     const frame = figma.createFrame();
-//
-//     frame.name = "Page " + page.index;
-//
-//     const SCALE = 1;
-//
-//     frame.resize(
-//         page.width * SCALE,
-//         page.height * SCALE
-//     );
-//
-//     frame.layoutMode = "NONE";
-//
-//     /* =========================
-//        🔥 FALLBACK IMAGE (QUAN TRỌNG)
-//     ========================== */
-//
-//     if ((!page.textItems || page.textItems.length === 0) && page.image) {
-//
-//         const rect = figma.createRectangle();
-//
-//         rect.resize(page.width, page.height);
-//
-//         const base64 = page.image.split(",")[1];
-//
-//         // ✅ FIX ĐÚNG
-//         const bytes = figma.base64Decode(base64);
-//
-//         const image = figma.createImage(bytes);
-//
-//         rect.fills = [{
-//             type: "IMAGE",
-//             scaleMode: "FILL",
-//             imageHash: image.hash
-//         }];
-//
-//         frame.appendChild(rect);
-//
-//         return frame;
-//     }
-//
-//     /* ===== PATH ===== */
-//     page.pathItems.forEach(p=>{
-//         if(p.type === "rect"){
-//             const rect = figma.createRectangle();
-//             rect.resize(p.width * SCALE, p.height * SCALE);
-//             rect.x = p.x * SCALE;
-//             rect.y = p.y * SCALE;
-//             frame.appendChild(rect);
-//         }
-//     });
-//
-//     /* ===== TEXT ===== */
-//     const lines = groupTextByLine(page.textItems);
-//
-//     lines.forEach(line=>{
-//
-//         const node = figma.createText();
-//
-//         node.characters = buildTextBlock(line);
-//         node.fontSize = line[0].fontSize || 12;
-//
-//         node.x = line[0].x * SCALE;
-//         node.y = line[0].y * SCALE;
-//
-//         frame.appendChild(node);
-//     });
-//
-//     return frame;
-// }
 
 async function renderPage(page){
 
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
 
     const frame = figma.createFrame();
-
     frame.name = "Page " + page.index;
-
     frame.resize(page.width, page.height);
     frame.layoutMode = "NONE";
 
     /* =========================
-       🔥 IMAGE MODE (FAST)
+       🎯 CREATE LAYERS
     ========================== */
 
-    if ((!page.textItems || page.textItems.length === 0) && page.imageBytes) {
-
-        const rect = figma.createRectangle();
-
-        rect.resize(page.width, page.height);
-
-        // 🔥 CHUẨN
-        const image = figma.createImage(new Uint8Array(page.imageBytes));
-
-        rect.fills = [{
-            type: "IMAGE",
-            scaleMode: "FILL",
-            imageHash: image.hash
-        }];
-
-        frame.appendChild(rect);
-
-        return frame;
+    function createLayer(name){
+        const layer = figma.createFrame();
+        layer.name = name;
+        layer.layoutMode = "NONE";
+        layer.resize(page.width, page.height);
+        layer.fills = [];
+        return layer;
     }
 
-    /* ===== PATH ===== */
-    page.pathItems.forEach(p=>{
-        if(p.type === "rect"){
+    const backgroundLayer = createLayer("background");
+    const imageLayer = createLayer("image");
+    const vectorLayer = createLayer("vector");
+    const textLayer = createLayer("text");
+    const overlayLayer = createLayer("overlay");
+
+    frame.appendChild(backgroundLayer);
+    frame.appendChild(imageLayer);
+    frame.appendChild(vectorLayer);
+    frame.appendChild(textLayer);
+    frame.appendChild(overlayLayer);
+
+    /* =========================
+       🖼 BACKGROUND (FULL PAGE)
+    ========================== */
+
+    if (page.image) {
+        try {
             const rect = figma.createRectangle();
-            rect.resize(p.width, p.height);
-            rect.x = p.x;
-            rect.y = p.y;
-            frame.appendChild(rect);
+            rect.resize(page.width, page.height);
+
+            const base64 = page.image.split(",")[1];
+            const bytes = figma.base64Decode(base64);
+            const image = figma.createImage(bytes);
+
+            rect.fills = [{
+                type: "IMAGE",
+                scaleMode: "FILL",
+                imageHash: image.hash
+            }];
+
+            backgroundLayer.appendChild(rect);
+
+        } catch (e) {
+            console.log("Background error", e);
         }
-    });
+    }
 
-    /* ===== TEXT ===== */
-    const lines = groupTextByLine(page.textItems);
+    /* =========================
+       🧩 IMAGE LAYER (pattern)
+    ========================== */
 
-    lines.forEach(line=>{
+    if (page.patternImages && page.patternImages.length) {
+
+        for (const p of page.patternImages) {
+
+            try {
+                const rect = figma.createRectangle();
+
+                rect.resize(p.width, p.height);
+
+                rect.x = Math.round(p.x);
+                rect.y = Math.round(page.height - p.y - p.height);
+
+                const base64 = p.image.split(",")[1];
+                const bytes = figma.base64Decode(base64);
+                const image = figma.createImage(bytes);
+
+                rect.fills = [{
+                    type: "IMAGE",
+                    scaleMode: "FILL",
+                    imageHash: image.hash
+                }];
+
+                imageLayer.appendChild(rect);
+
+            } catch (e) {
+                console.log("Pattern error", e);
+            }
+        }
+    }
+
+    /* =========================
+       🔺 VECTOR LAYER (shape)
+    ========================== */
+
+    if (page.pathItems && page.pathItems.length) {
+
+        page.pathItems.forEach(p => {
+
+            if (p.type === "rect") {
+
+                const rect = figma.createRectangle();
+
+                rect.resize(p.width, p.height);
+                rect.x = p.x;
+                rect.y = page.height - p.y - p.height;
+
+                rect.fills = [{
+                    type: "SOLID",
+                    color: { r: 0.9, g: 0.9, b: 0.9 }
+                }];
+
+                vectorLayer.appendChild(rect);
+            }
+        });
+    }
+
+    /* =========================
+       📝 TEXT LAYER
+    ========================== */
+
+    const lines = groupTextByLine(page.textItems || []);
+
+    lines.forEach(line => {
 
         const node = figma.createText();
 
+        const t = line[0];
+
         node.characters = buildTextBlock(line);
 
-        let t = line[0];
-        node.characters = t.text;
+        node.fontSize = t.fontSize || 12;
 
-        // 🔥 V10 STYLE ENGINE
-        if(ADVANCED_MODE){
+        node.x = t.x;
+        node.y = t.y;
 
-            let t = line[0];
-            node.fontSize = t.fontSize || 12;
+        node.fills = [{
+            type: "SOLID",
+            color: t.color || { r: 0, g: 0, b: 0 }
+        }];
 
-            // màu chuẩn
-            node.fills = [{
-                type:"SOLID",
-                color:{ r:0, g:0, b:0 }
-            }];
-
-            // spacing
-            node.letterSpacing = {
-                value:0.4,
-                unit:"PIXELS"
-            };
-
-            // line height
-            node.lineHeight = {
-                value: (t.fontSize || 12) * 1.2,
-                unit:"PIXELS"
-            };
-
-        }else{
-
-            let t = line[0];
-            node.fontSize = t.fontSize || 12;
-        }
-
-        node.x = line[0].x;
-        node.y = line[0].y;
-
-        frame.appendChild(node);
+        textLayer.appendChild(node);
     });
+
+    /* =========================
+       ✨ OVERLAY (debug / effect)
+    ========================== */
+
+    // ví dụ overlay debug (có thể tắt)
+    const overlay = figma.createRectangle();
+    overlay.resize(page.width, page.height);
+    overlay.fills = [{
+        type: "SOLID",
+        color: { r: 0, g: 0, b: 0 },
+        opacity: 0 // để 0 cho trong suốt
+    }];
+
+    overlayLayer.appendChild(overlay);
 
     return frame;
 }
@@ -398,32 +392,33 @@ async function renderPage(page){
 async function renderBatch(pages, settings){
 
     if(!GLOBAL_WRAPPER){
-
         GLOBAL_WRAPPER = createPageWrapper(settings.fileName);
-
         figma.currentPage.appendChild(GLOBAL_WRAPPER);
     }
 
-    let currentY = 0;
     const GAP = 40;
+    const COLS = 5;
+
+    let maxHeightRow = 0;
 
     for(let i=0;i<pages.length;i++){
 
         const frame = await renderPage(pages[i]);
 
-        // căn giữa
-        frame.x = 0;
-        frame.y = currentY;
+        const col = i % COLS;
+        const row = Math.floor(i / COLS);
+
+        frame.x = col * (frame.width + GAP);
+        frame.y = row * (frame.height + GAP);
 
         GLOBAL_WRAPPER.appendChild(frame);
 
-        currentY += frame.height + GAP;
+        maxHeightRow = Math.max(maxHeightRow, frame.height);
     }
 
-    // resize section fit content
     GLOBAL_WRAPPER.resizeWithoutConstraints(
-        pages[0].width,
-        currentY + 40
+        COLS * (pages[0].width + GAP),
+        Math.ceil(pages.length / COLS) * (pages[0].height + GAP)
     );
 }
 
@@ -487,5 +482,13 @@ figma.ui.onmessage = async (msg) => {
     if(msg.type === "advanced-mode"){
         ADVANCED_MODE = true;
         figma.notify("⚡ Advanced Mode Enabled");
+    }
+    if (msg.type === "preview-single") {
+
+        const frame = await renderPage(msg.page);
+
+        figma.currentPage.appendChild(frame);
+
+        figma.viewport.scrollAndZoomIntoView([frame]);
     }
 };

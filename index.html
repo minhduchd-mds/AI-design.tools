@@ -380,6 +380,7 @@
     let latestHTML = "";
     let latestPages = "";
     let currentFileName = "";
+
     pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
     // pdfjsLib.disableWorker = false;
@@ -426,6 +427,7 @@
         const step = document.getElementById("loadingStep");
         const preview = document.getElementById("previewContent");
         currentFileName = file.name;
+
         try {
 
             if (loading) loading.style.display = "block";
@@ -435,6 +437,7 @@
             const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
 
             const pages = [];
+
 
             /* =========================
                🔥 OCR
@@ -465,13 +468,14 @@
                     canvasContext: ctx,
                     viewport
                 }).promise;
-
+                const imageBase64 = canvas.toDataURL("image/png");
                 const img = document.createElement("img");
                 img.src = canvas.toDataURL();
                 img.style.width = "100%";
 
                 preview.appendChild(img);
             }
+
             /* =========================
                🔥 PARSE ALL PAGES (V15)
             ========================= */
@@ -496,6 +500,7 @@
                     viewport
                 }).promise;
 
+
                 /* =========================
                    TEXT PDF (GIỮ NGUYÊN)
                 ========================== */
@@ -513,13 +518,11 @@
                             x:t.transform[4],
                             y: viewport.height - t.transform[5],
                             fontSize,
-
-                            // 🔥 V10 style info
                             width: t.width || 0,
                             height: t.height || 0
                         };
                     });
-
+                const patternImages = extractPatternsFromCanvas(canvas, textItems);
                 /* =========================
                    🔥 OCR + COLOR (THÊM)
                 ========================== */
@@ -535,21 +538,15 @@
                     );
 
                     function getColor(x, y, w, h) {
-                        const d = ctx.getImageData(x, y, w, h).data;
+                        const cx = Math.floor(x + w / 2);
+                        const cy = Math.floor(y + h / 2);
 
-                        let r = 0, g = 0, b = 0, c = 0;
-
-                        for (let i = 0; i < d.length; i += 4) {
-                            r += d[i];
-                            g += d[i + 1];
-                            b += d[i + 2];
-                            c++;
-                        }
+                        const d = ctx.getImageData(cx, cy, 1, 1).data;
 
                         return {
-                            r: (r / c) / 255,
-                            g: (g / c) / 255,
-                            b: (b / c) / 255
+                            r: d[0] / 255,
+                            g: d[1] / 255,
+                            b: d[2] / 255
                         };
                     }
 
@@ -579,102 +576,43 @@
                 /* =========================
                    SEND
                 ========================== */
+
+                console.log("patterns found:", patternImages.length);
+                const imageBase64 = canvas.toDataURL("image/png");
+
+                const pageData = {
+                    textItems: finalTextItems,
+                    pathItems: [],
+                    patternImages: patternImages,
+                    image: imageBase64,
+                    width: viewport.width,
+                    height: viewport.height,
+                    index: i
+                };
+
+                // push để import sau
+                pages.push(pageData);
+
+                // preview ngay
                 parent.postMessage({
                     pluginMessage: {
-                        type: "page-chunk",
-                        page: {
-                            textItems: finalTextItems,
-                            pathItems: [],
-                            width: viewport.width,
-                            height: viewport.height,
-                            index: i
-                        }
+                        type: "preview-single",
+                        page: pageData
                     }
                 }, "*");
 
+                // import batch
+                parent.postMessage({
+                    pluginMessage: {
+                        type: "page-chunk",
+                        page: pageData
+                    }
+                }, "*");
+                console.log("patterns:", patternImages.length);
                 await new Promise(r=>setTimeout(r,5));
             }
 
-
-            // for (let i = 1; i <= pdf.numPages; i++) {
-            //
-            //     if (step) step.textContent = `👁 Preview page ${i}/${pdf.numPages}`;
-            //
-            //     const page = await pdf.getPage(i);
-            //     const viewport = page.getViewport({ scale });
-            //
-            //     // Check pdf images convert file canvas
-            //     const canvas = document.createElement("canvas");
-            //     const ctx = canvas.getContext("2d");
-            //
-            //     canvas.width = viewport.width;
-            //     canvas.height = viewport.height;
-            //
-            //     await page.render({
-            //         canvasContext: ctx,
-            //         viewport
-            //     }).promise;
-            //
-            //     // convert sang image
-            //     const blob = await new Promise(resolve => canvas.toBlob(resolve));
-            //     const buffer = await blob.arrayBuffer();
-            //     const finalTextItems = textItems.length ? textItems : ocrTextItems;
-            //     const textContent = await page.getTextContent();
-            //     const operatorList = await page.getOperatorList();
-            //
-            //     const textItems = textContent.items
-            //         .filter(t => t.str && t.str.trim())
-            //         .map((t, idx) => ({
-            //             id: "t_" + i + "_" + idx,
-            //             text: t.str || "",
-            //             x: t.transform[4],
-            //             y: viewport.height - t.transform[5],
-            //             fontSize: t.height || 12
-            //         }));
-            //
-            //     const pathItems = [];
-            //
-            //     operatorList.fnArray.forEach((fn, idx) => {
-            //         const args = operatorList.argsArray[idx];
-            //
-            //         if (fn === pdfjsLib.OPS.rectangle) {
-            //             pathItems.push({
-            //                 type: "rect",
-            //                 x: args[0],
-            //                 y: viewport.height - args[1],
-            //                 width: args[2],
-            //                 height: args[3]
-            //             });
-            //         }
-            //     });
-            //
-            //     pages.push({
-            //         textItems: finalTextItems,
-            //         pathItems,
-            //         width: viewport.width,
-            //         height: viewport.height,
-            //         index: i,
-            //         imageBytes: buffer
-            //     });
-            //
-            // }
-
             latestPages = pages;
-
-            /* =========================
-               🔥 SHOW INFO
-            ========================= */
-
-            // if (preview) {
-            //     const info = document.createElement("div");
-            //     info.style.color = "#94a3b8";
-            //     info.style.fontSize = "12px";
-            //     info.style.marginTop = "6px";
-            //
-            //     info.innerHTML = `📄 Parsed <b>${pages.length}</b> pages`;
-            //
-            //     preview.appendChild(info);
-            // }
 
         } catch (err) {
             console.error(err);
@@ -745,6 +683,124 @@
         }, "*");
     }
 
+    function extractPatternsFromCanvas(canvas, textItems) {
+
+        const ctx = canvas.getContext("2d");
+        const { width, height } = canvas;
+
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const data = imgData.data;
+
+        const visited = new Uint8Array(width * height);
+        const patterns = [];
+
+        function getIndex(x, y) {
+            return y * width + x;
+        }
+
+        function brightness(i) {
+            return (data[i] + data[i+1] + data[i+2]) / 3;
+        }
+
+        function isForeground(i) {
+            // 🔥 detect vùng có nội dung (không phải nền)
+            return brightness(i) < 245;
+        }
+
+        function floodFill(sx, sy) {
+
+            const stack = [[sx, sy]];
+            let minX = sx, maxX = sx;
+            let minY = sy, maxY = sy;
+            let pixelCount = 0;
+
+            while (stack.length) {
+                const [x, y] = stack.pop();
+                const idx = getIndex(x, y);
+
+                if (visited[idx]) continue;
+                visited[idx] = 1;
+
+                const i = idx * 4;
+
+                if (!isForeground(i)) continue;
+
+                pixelCount++;
+
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+
+                if (x > 0) stack.push([x - 1, y]);
+                if (x < width - 1) stack.push([x + 1, y]);
+                if (y > 0) stack.push([x, y - 1]);
+                if (y < height - 1) stack.push([x, y + 1]);
+            }
+
+            return { minX, minY, maxX, maxY, pixelCount };
+        }
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+
+                const idx = getIndex(x, y);
+                if (visited[idx]) continue;
+
+                const i = idx * 4;
+                if (!isForeground(i)) continue;
+
+                const box = floodFill(x, y);
+
+                const w = box.maxX - box.minX;
+                const h = box.maxY - box.minY;
+
+                const area = w * h;
+                const density = box.pixelCount / (area || 1);
+                const ratio = w / (h || 1);
+
+                // 🔥 THÊM Ở ĐÂY
+                if (isOverlapText(box, textItems)) continue;
+
+                // 🔥 FILTER CHÍNH
+                if (
+                    area < 1500 ||
+                    w < 30 || h < 30 ||
+                    density < 0.25 ||
+                    ratio > 8 || ratio < 0.15
+                ) continue;
+
+                const tempCanvas = document.createElement("canvas");
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+
+                tempCanvas.getContext("2d").drawImage(
+                    canvas,
+                    box.minX, box.minY, w, h,
+                    0, 0, w, h
+                );
+
+                patterns.push({
+                    x: box.minX,
+                    y: box.minY,
+                    width: w,
+                    height: h,
+                    image: tempCanvas.toDataURL()
+                });
+            }
+        }
+
+        return patterns;
+    }
+    function isOverlapText(box, textItems) {
+        return textItems.some(t =>
+            !(box.maxX < t.x ||
+                box.minX > t.x + t.width ||
+                box.maxY < t.y ||
+                box.minY > t.y + t.height)
+        );
+    }
+
     /* ===== RECEIVE MESSAGES ===== */
     onmessage = (event) => {
         const msg = event.data.pluginMessage;
@@ -758,6 +814,9 @@
             document.getElementById("output").value = latestHTML;
             document.getElementById("loading").classList.add("hidden");
             document.getElementById("btn-gen").classList.remove("loading");
+        }
+        if (msg.type === "done") {
+            alert("✅ Import complete!");
         }
     };
 
