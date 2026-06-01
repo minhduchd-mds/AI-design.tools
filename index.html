@@ -357,11 +357,16 @@
     <!-- AI TAB -->
     <div id="ai" class="tab-content hidden">
         <div class="card">
-            <div class="title">AI Convert (Pro)</div>
+            <div class="title">Scan test frame</div>
 
-            <button class="btn btn-green" onclick="fakeAI()">
-                🤖 Convert to React + Tailwind
+            <button class="btn btn-green" onclick="ScanAI()">
+                Scan frame
             </button>
+            <div id="scanLoading" style="display:none;text-align:center;margin-top:16px;">
+                <div class="loader"></div>
+                <div id="scanStep" style="margin-top:12px;font-size:14px;"></div>
+            </div>
+            <div id="previewGen"></div>
         </div>
     </div>
 
@@ -372,7 +377,7 @@
         <div class="tab active" onclick="switchTab('export')">Export</div>
         <div class="tab" onclick="switchTab('import')">Import</div>
         <div class="tab" onclick="switchTab('code')">Code</div>
-        <div class="tab" onclick="switchTab('ai')">AI</div>
+        <div class="tab" onclick="switchTab('ai')">Scan</div>
     </div>
 </div>
 <script>
@@ -383,10 +388,6 @@
 
     pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-    // pdfjsLib.disableWorker = false;
-    /* ===== MODE SELECTOR ===== */
-
-
 
     /* ===== TAB SWITCH ===== */
     function switchTab(tab) {
@@ -437,11 +438,6 @@
             const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
 
             const pages = [];
-
-
-            /* =========================
-               🔥 OCR
-            ========================= */
 
             /* =========================
             🔥 FULL PAGE PREVIEW
@@ -623,7 +619,52 @@
     }
 
     /* ===== PREVIEW & IMPORT ===== */
+    async function ScanAI() {
+        const loading = document.getElementById("scanLoading");
+        const step = document.getElementById("scanStep");
 
+        if (loading) loading.style.display = "block";
+        if (step) step.textContent = "📄 Sending scan request...";
+        const pages = [];
+        const colorSet = new Set();
+
+        figma.root.children.forEach(function(page) {
+
+            var pageData = {
+                name: page.name,
+                frames: []
+            };
+
+            page.children.forEach(function(node) {
+
+                if (node.type === "FRAME") {
+
+                    // rename
+                    if (/Frame \d+/.test(node.name)) {
+                        node.name = "MainLayout";
+                    }
+
+                    // clean hidden
+                    node.children.forEach(function(child) {
+                        if (!child.visible && child.type !== "COMPONENT") {
+                            child.remove();
+                        }
+                    });
+
+                    const frameData = parseNode(node, colorSet);
+                    pageData.frames.push(frameData);
+                }
+            });
+
+            pages.push(pageData);
+        });
+
+        return {
+            pages: pages,
+            colors: Array.from(colorSet)
+        };
+
+    }
 
 
 
@@ -818,6 +859,19 @@
         if (msg.type === "done") {
             alert("✅ Import complete!");
         }
+
+        if (msg.type === "scan") {
+
+            var result = scanAll();
+
+            figma.ui.postMessage({
+                type: "scan-result",
+                data: result
+            });
+
+            figma.notify("✅ Scan done");
+        }
+
     };
 
     /* ===== OTHER FUNCTIONS ===== */
@@ -874,9 +928,7 @@
         return "data:image/png;base64," + btoa(binary);
     }
 
-    function fakeAI() {
-        alert("🚀 AI Convert coming soon (Pro feature)");
-    }
+
     onmessage = (event) => {
         const msg = event.data.pluginMessage;
         if (!msg) return;

@@ -491,4 +491,100 @@ figma.ui.onmessage = async (msg) => {
 
         figma.viewport.scrollAndZoomIntoView([frame]);
     }
+    if (msg.type === "scan") {
+
+    const pages = [];
+    const colorSet = new Set();
+        function rgbToHex(color) {
+            if (!color) return null;
+
+            const r = Math.round(color.r * 255);
+            const g = Math.round(color.g * 255);
+            const b = Math.round(color.b * 255);
+
+            return "#" + [r, g, b]
+              .map(function(x) {
+                  return x.toString(16).padStart(2, "0");
+              })
+              .join("");
+        }
+
+        function extractColors(node, colorSet) {
+            if ("fills" in node && node.fills !== figma.mixed) {
+                node.fills.forEach(function(fill) {
+                    if (fill.type === "SOLID") {
+                        colorSet.add(rgbToHex(fill.color));
+                    }
+                });
+            }
+        }
+
+        function parseNode(node, colorSet) {
+
+            extractColors(node, colorSet);
+
+            return {
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                x: node.x || 0,
+                y: node.y || 0,
+                width: node.width || 0,
+                height: node.height || 0,
+                visible: node.visible,
+
+                children: node.children
+                  ? node.children.map(function(child) {
+                      return parseNode(child, colorSet);
+                  })
+                  : []
+            };
+        }
+
+        function scanAll() {
+            const pages = [];
+            const colorSet = new Set();
+
+            figma.root.children.forEach(function (page) {
+              const pageData = {
+                name: page.name,
+                frames: [],
+              };
+
+              page.children.forEach(function (node) {
+                if (node.type === 'FRAME') {
+                  // rename
+                  if (/Frame \d+/.test(node.name)) {
+                    node.name = 'MainLayout';
+                  }
+
+                  // clean hidden
+                  node.children.forEach(function (child) {
+                    if (!child.visible && child.type !== 'COMPONENT') {
+                      child.remove();
+                    }
+                  });
+
+                    const frameData = parseNode(node, colorSet);
+                    pageData.frames.push(frameData);
+                }
+              });
+
+              pages.push(pageData);
+            });
+
+            return {
+                pages: pages,
+                colors: Array.from(colorSet)
+            };
+        }
+
+    figma.ui.postMessage({
+      type: "scan-result",
+      data: {
+        pages,
+        colors: Array.from(colorSet)
+      }
+    });
+  }
 };
