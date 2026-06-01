@@ -586,24 +586,7 @@
                     index: i
                 };
 
-                // push để import sau
-                pages.push(pageData);
 
-                // preview ngay
-                parent.postMessage({
-                    pluginMessage: {
-                        type: "preview-single",
-                        page: pageData
-                    }
-                }, "*");
-
-                // import batch
-                parent.postMessage({
-                    pluginMessage: {
-                        type: "page-chunk",
-                        page: pageData
-                    }
-                }, "*");
                 console.log("patterns:", patternImages.length);
                 await new Promise(r=>setTimeout(r,5));
             }
