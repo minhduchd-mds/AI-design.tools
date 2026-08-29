@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ai-design-tools-${{ github.ref }}-${{ matrix.node-version }}
+  group: ai-design-tools-${{ github.workflow }}-${{ github.ref }}-${{ matrix.node-version }}
   cancel-in-progress: true
 
 jobs:
@@ -37,8 +37,17 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Token-mapping tests
-        run: npm test
+      - name: Require source provenance
+        run: test -s docs/SOURCE_PROVENANCE.md
 
-      - name: Vite build
-        run: npm run build
+      - name: Reject unresolved merge markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -E '^(<<<<<<< |=======|>>>>>>> )' -- ':!package-lock.json' ':!**/package-lock.json' ':!*.min.js'; then
+            echo 'Unresolved Git conflict markers found.' >&2
+            exit 1
+          fi
+
+      - name: Test and build
+        run: npm run check
