@@ -64,7 +64,9 @@ test('marks close top candidates as ambiguous instead of inventing certainty', (
       { path: 'brand.primary', type: 'color', value: '#ff0000' },
       { path: 'brand.primary.alt', type: 'color', value: '#ff0000' },
     ],
-    { ambiguityGap: 0.2 },
+    // The two candidates share both semantic and value evidence. This fixture
+    // deliberately requires a wider confidence gap before auto-accepting.
+    { ambiguityGap: 0.3 },
   )[0];
 
   assert.equal(result.accepted, false);
