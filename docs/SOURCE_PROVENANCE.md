@@ -22,6 +22,12 @@ Official upstream references:
 - jsPDF: https://github.com/parallax/jsPDF — MIT.
 - Mozilla PDF.js: https://github.com/mozilla/pdf.js — Apache-2.0.
 
+## Agent-layer structural reference
+
+- `davila7/claude-code-templates` — https://github.com/davila7/claude-code-templates, reviewed at upstream main commit `618365a60f59db76dd91693996dc6d5f5b1cd86d`, MIT.
+- Used only as structural inspiration for repo-local specialist agents, bounded commands, and component validation/security discipline.
+- The `.claude/` prompt bodies in this repository are written specifically for Design IR, transformation fidelity, token intelligence, and MCP/tool boundaries. No upstream prompt body or implementation code was copied.
+
 ## Mathematical reference used by token matching
 
 `src/tokenmap.js` converts sRGB values to Oklab for perceptual color distance. The Oklab transform and matrices are from Björn Ottosson's public specification:
