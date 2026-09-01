@@ -1,12 +1,15 @@
 {
-  "name": "improt.file.mds.ai",
+  "name": "ai-design-tools",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "description": "Design asset conversion and design-token intelligence workspace for Figma-oriented workflows.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test src/*.test.js",
+    "check": "npm run test && npm run build"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.125.0",
@@ -29,8 +32,16 @@
     "source-map-js": "^1.2.1",
     "tinyglobby": "^0.2.16"
   },
-  "keywords": [],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "keywords": [
+    "figma",
+    "design-token",
+    "pdf",
+    "design-conversion",
+    "ui-ux"
+  ],
   "author": "",
-  "license": "ISC",
-  "description": ""
+  "license": "ISC"
 }
