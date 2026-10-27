@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Prevent local credentials and personal data exports from being committed
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*.sqlite
+*.sqlite3
+*.db
+**/credentials.json
+**/service-account.json
+**/*personal-backup*.json
+**/*user-export*.json
+json/post.json
+json/login.json
+json/menber.json
