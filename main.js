@@ -163,7 +163,7 @@ function createPageWrapper(fileName){
     const now = new Date().toLocaleString();
     const cleanName = formatFileName(fileName);
 
-    section.name = `${cleanName} by Đỗ Minh Đức ❤️ - ${now}`;
+    section.name = `${cleanName} by Design Exporter ❤️ - ${now}`;
 
     section.x = 0;
     section.y = 0;
